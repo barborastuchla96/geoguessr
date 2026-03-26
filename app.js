@@ -154,15 +154,10 @@ const Home = (() => {
     document.getElementById('btn-play').addEventListener('click', () => {
       const photos = Store.load();
       if (photos.length === 0) {
-        alert('No photos yet! Add some photos first using "+ Add Photos".');
+        alert('No photos yet! Photos need to be added before you can play.');
         return;
       }
       Game.start();
-    });
-
-    document.getElementById('btn-admin').addEventListener('click', () => {
-      App.show('admin');
-      Admin.init();
     });
   }
 
@@ -702,9 +697,86 @@ const Game = (() => {
 })();
 
 /* ────────────────────────────────────────────────────────────
+   ADMIN PASSWORD GATE
+   ──────────────────────────────────────────────────────────── */
+const AdminGate = (() => {
+  // Change this password to whatever you like
+  const ADMIN_PASSWORD = 'wherewasthis2024';
+  const SESSION_KEY = 'wwt_admin_auth';
+
+  function isAuthed() {
+    return sessionStorage.getItem(SESSION_KEY) === '1';
+  }
+
+  function show(onSuccess) {
+    const gate = document.getElementById('admin-gate');
+    const input = document.getElementById('admin-password-input');
+    const submitBtn = document.getElementById('admin-gate-submit');
+    const error = document.getElementById('admin-gate-error');
+
+    gate.style.display = 'flex';
+    error.style.display = 'none';
+    input.value = '';
+    setTimeout(() => input.focus(), 80);
+
+    function attempt() {
+      if (input.value === ADMIN_PASSWORD) {
+        sessionStorage.setItem(SESSION_KEY, '1');
+        gate.style.display = 'none';
+        // Clear hash without reloading
+        history.replaceState(null, '', window.location.pathname);
+        onSuccess();
+      } else {
+        error.style.display = 'block';
+        input.value = '';
+        input.focus();
+      }
+    }
+
+    submitBtn.onclick = attempt;
+    input.onkeydown = e => { if (e.key === 'Enter') attempt(); };
+
+    // Dismiss on backdrop click
+    gate.onclick = e => {
+      if (e.target === gate) {
+        gate.style.display = 'none';
+        history.replaceState(null, '', window.location.pathname);
+      }
+    };
+  }
+
+  function tryAdminAccess() {
+    if (isAuthed()) {
+      App.show('admin');
+      Admin.init();
+    } else {
+      show(() => {
+        App.show('admin');
+        Admin.init();
+      });
+    }
+  }
+
+  return { tryAdminAccess };
+})();
+
+/* ────────────────────────────────────────────────────────────
    BOOT
    ──────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   Home.init();
-  App.show('home');
+
+  // Check if URL has #admin hash
+  if (window.location.hash === '#admin') {
+    AdminGate.tryAdminAccess();
+  } else {
+    App.show('home');
+  }
+
+  // Also listen for hash changes (e.g. typing #admin in the bar)
+  window.addEventListener('hashchange', () => {
+    if (window.location.hash === '#admin') {
+      AdminGate.tryAdminAccess();
+    }
+  });
 });
