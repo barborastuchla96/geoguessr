@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WHERE WAS THIS?!</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- exifr (GPS extraction) -->
+  <script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/lite.umd.js"></script>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Boogaloo&family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===================== SCREEN: HOME ===================== -->
+  <div id="screen-home" class="screen active">
+    <div class="blob blob-pink"></div>
+    <div class="blob blob-blue"></div>
+    <div class="blob blob-yellow"></div>
+
+    <div class="home-content">
+      <div class="home-title">
+        <span>WHERE</span>
+        <span>WAS</span>
+        <span>THIS?!</span>
+      </div>
+      <p class="home-subtitle">A geography game made of your own photos.&nbsp; No cheating.</p>
+      <div class="home-buttons">
+        <button id="btn-play" class="btn-primary">▶ PLAY</button>
+        <button id="btn-admin" class="btn-ghost">+ Add Photos</button>
+      </div>
+      <p class="home-stats" id="home-stats">No photos loaded yet.</p>
+    </div>
+
+    <div class="ticker-strip" id="ticker-strip">
+      <div class="ticker-inner" id="ticker-inner"></div>
+    </div>
+  </div>
+
+  <!-- ===================== SCREEN: ADMIN ===================== -->
+  <div id="screen-admin" class="screen">
+    <div class="admin-topbar">
+      <button class="btn-back" id="btn-admin-back">← Back</button>
+      <h2 class="admin-title">Photo Library</h2>
+      <span class="admin-count" id="admin-count">0 photos</span>
+    </div>
+
+    <div class="admin-body">
+      <!-- Drop zone -->
+      <div class="drop-zone" id="drop-zone">
+        <div class="drop-zone-inner">
+          <div class="drop-icon">📷</div>
+          <p class="drop-text">Drop photos here or <label for="file-input" class="file-label">browse files</label></p>
+          <p class="drop-sub">JPG, HEIC, PNG — GPS data extracted automatically</p>
+          <input type="file" id="file-input" multiple accept="image/*" style="display:none"/>
+        </div>
+      </div>
+
+      <!-- Pending photos (no GPS) -->
+      <div id="pending-section" style="display:none">
+        <h3 class="section-title">📍 Pin these manually</h3>
+        <p class="section-sub">These photos had no GPS data. Click a photo then click the map to set its location.</p>
+        <div class="pending-grid" id="pending-grid"></div>
+        <div id="pin-map-wrap">
+          <div id="pin-map"></div>
+          <div class="pin-map-hint" id="pin-map-hint">Click the map to drop a pin</div>
+          <button class="btn-confirm-pin" id="btn-confirm-pin" disabled>✓ Save Location</button>
+        </div>
+      </div>
+
+      <!-- Saved photos grid -->
+      <div id="saved-section">
+        <h3 class="section-title">🗂 Your Photos</h3>
+        <div class="photo-grid" id="photo-grid"></div>
+        <p class="empty-msg" id="empty-msg">No photos yet. Add some above!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SCREEN: GAME ===================== -->
+  <div id="screen-game" class="screen">
+    <!-- Full-screen photo -->
+    <img id="game-photo" class="game-photo" src="" alt="Where was this taken?" />
+
+    <!-- Floating HUD top -->
+    <div class="game-hud">
+      <div class="hud-round" id="hud-round">Round 1 / 5</div>
+      <div class="hud-score" id="hud-score">0 pts</div>
+    </div>
+
+    <!-- Corner map panel -->
+    <div class="map-panel" id="map-panel">
+      <div class="map-pill-hint" id="map-pill-hint">
+        <span class="map-pill-icon">🗺️</span>
+        <span class="map-pill-text">Click to guess</span>
+      </div>
+      <div id="guess-map"></div>
+      <button class="btn-submit-guess" id="btn-submit-guess">Submit Guess →</button>
+    </div>
+  </div>
+
+  <!-- ===================== SCREEN: RESULT ===================== -->
+  <div id="screen-result" class="screen">
+    <div id="result-map"></div>
+    <div class="result-card" id="result-card">
+      <div class="result-emoji" id="result-emoji">🎯</div>
+      <div class="result-score" id="result-score">5000</div>
+      <div class="result-distance" id="result-distance">0 km away</div>
+      <div class="result-quip" id="result-quip">Are you cheating?!</div>
+      <button class="btn-next" id="btn-next">Next Round →</button>
+    </div>
+  </div>
+
+  <!-- ===================== SCREEN: FINAL ===================== -->
+  <div id="screen-final" class="screen">
+    <div class="final-content">
+      <div class="final-title">GAME OVER!</div>
+      <div class="final-score-wrap">
+        <span class="final-score-label">Your Score</span>
+        <span class="final-score" id="final-score">0</span>
+        <span class="final-score-max" id="final-score-max">/ 25000</span>
+      </div>
+      <div class="final-grade" id="final-grade">🗺️ Maybe look at your own photos more often lol</div>
+
+      <table class="rounds-table" id="rounds-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Distance</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody id="rounds-tbody"></tbody>
+      </table>
+
+      <div class="final-buttons">
+        <button class="btn-primary" id="btn-play-again">▶ Play Again</button>
+        <button class="btn-ghost" id="btn-home">⌂ Home</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
