@@ -41,6 +41,9 @@
     <div class="ticker-strip" id="ticker-strip">
       <div class="ticker-inner" id="ticker-inner"></div>
     </div>
+
+    <!-- Hidden admin entry point -->
+    <button id="btn-admin-secret" class="btn-admin-secret" title="">🔒</button>
   </div>
 
   <!-- ===================== SCREEN: ADMIN ===================== -->
@@ -146,13 +149,13 @@
     </div>
   </div>
 
-  <!-- ===================== ADMIN PASSWORD MODAL ===================== -->
-  <div id="admin-gate" class="admin-gate" style="display:none">
+  <!-- ===================== PASSWORD MODAL ===================== -->
+  <div id="pw-gate" class="admin-gate" style="display:none">
     <div class="admin-gate-box">
-      <div class="admin-gate-title">🔐 Admin Access</div>
-      <input id="admin-password-input" class="admin-gate-input" type="password" placeholder="Password" autocomplete="current-password" />
-      <button id="admin-gate-submit" class="btn-primary" style="width:100%">Enter</button>
-      <p id="admin-gate-error" class="admin-gate-error" style="display:none">Wrong password.</p>
+      <div class="admin-gate-title" id="pw-gate-title">🔐 Enter Password</div>
+      <input id="pw-gate-input" class="admin-gate-input" type="password" placeholder="Password" autocomplete="current-password" />
+      <button id="pw-gate-submit" class="btn-primary" style="width:100%">Enter</button>
+      <p id="pw-gate-error" class="admin-gate-error" style="display:none">Wrong password.</p>
     </div>
   </div>
 

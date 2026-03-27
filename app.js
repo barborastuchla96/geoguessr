@@ -154,10 +154,10 @@ const Home = (() => {
     document.getElementById('btn-play').addEventListener('click', () => {
       const photos = Store.load();
       if (photos.length === 0) {
-        alert('No photos yet! Photos need to be added before you can play.');
+        alert('No photos yet! Check back soon.');
         return;
       }
-      Game.start();
+      PasswordGate.request('play', () => Game.start());
     });
   }
 
@@ -697,34 +697,44 @@ const Game = (() => {
 })();
 
 /* ────────────────────────────────────────────────────────────
-   ADMIN PASSWORD GATE
+   PASSWORD GATE — handles both play + admin access
    ──────────────────────────────────────────────────────────── */
-const AdminGate = (() => {
-  // Change this password to whatever you like
-  const ADMIN_PASSWORD = 'wherewasthis2024';
-  const SESSION_KEY = 'wwt_admin_auth';
+const PasswordGate = (() => {
+  // ↓ Change these passwords to whatever you like
+  const PASSWORDS = {
+    play:  'letmeplay',
+    admin: 'wherewasthis2024',
+  };
+  const SESSION_KEYS = {
+    play:  'wwt_play_auth',
+    admin: 'wwt_admin_auth',
+  };
+  const TITLES = {
+    play:  '🎮 Enter to Play',
+    admin: '🔐 Admin Access',
+  };
 
-  function isAuthed() {
-    return sessionStorage.getItem(SESSION_KEY) === '1';
+  function isAuthed(mode) {
+    return sessionStorage.getItem(SESSION_KEYS[mode]) === '1';
   }
 
-  function show(onSuccess) {
-    const gate = document.getElementById('admin-gate');
-    const input = document.getElementById('admin-password-input');
-    const submitBtn = document.getElementById('admin-gate-submit');
-    const error = document.getElementById('admin-gate-error');
+  function show(mode, onSuccess) {
+    const gate     = document.getElementById('pw-gate');
+    const title    = document.getElementById('pw-gate-title');
+    const input    = document.getElementById('pw-gate-input');
+    const submitBtn= document.getElementById('pw-gate-submit');
+    const error    = document.getElementById('pw-gate-error');
 
+    title.textContent = TITLES[mode];
     gate.style.display = 'flex';
     error.style.display = 'none';
     input.value = '';
     setTimeout(() => input.focus(), 80);
 
     function attempt() {
-      if (input.value === ADMIN_PASSWORD) {
-        sessionStorage.setItem(SESSION_KEY, '1');
+      if (input.value === PASSWORDS[mode]) {
+        sessionStorage.setItem(SESSION_KEYS[mode], '1');
         gate.style.display = 'none';
-        // Clear hash without reloading
-        history.replaceState(null, '', window.location.pathname);
         onSuccess();
       } else {
         error.style.display = 'block';
@@ -733,31 +743,21 @@ const AdminGate = (() => {
       }
     }
 
+    // Replace handlers each time to avoid stacking old callbacks
     submitBtn.onclick = attempt;
     input.onkeydown = e => { if (e.key === 'Enter') attempt(); };
-
-    // Dismiss on backdrop click
-    gate.onclick = e => {
-      if (e.target === gate) {
-        gate.style.display = 'none';
-        history.replaceState(null, '', window.location.pathname);
-      }
-    };
+    gate.onclick = e => { if (e.target === gate) gate.style.display = 'none'; };
   }
 
-  function tryAdminAccess() {
-    if (isAuthed()) {
-      App.show('admin');
-      Admin.init();
+  function request(mode, onSuccess) {
+    if (isAuthed(mode)) {
+      onSuccess();
     } else {
-      show(() => {
-        App.show('admin');
-        Admin.init();
-      });
+      show(mode, onSuccess);
     }
   }
 
-  return { tryAdminAccess };
+  return { request };
 })();
 
 /* ────────────────────────────────────────────────────────────
@@ -765,18 +765,13 @@ const AdminGate = (() => {
    ──────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   Home.init();
+  App.show('home');
 
-  // Check if URL has #admin hash
-  if (window.location.hash === '#admin') {
-    AdminGate.tryAdminAccess();
-  } else {
-    App.show('home');
-  }
-
-  // Also listen for hash changes (e.g. typing #admin in the bar)
-  window.addEventListener('hashchange', () => {
-    if (window.location.hash === '#admin') {
-      AdminGate.tryAdminAccess();
-    }
+  // Hidden admin lock button
+  document.getElementById('btn-admin-secret').addEventListener('click', () => {
+    PasswordGate.request('admin', () => {
+      App.show('admin');
+      Admin.init();
+    });
   });
 });

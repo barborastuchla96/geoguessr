@@ -655,6 +655,24 @@ html, body {
 .admin-body::-webkit-scrollbar-track { background: transparent; }
 .admin-body::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
 
+/* Hidden admin button */
+.btn-admin-secret {
+  position: absolute;
+  bottom: 80px;
+  left: 12px;
+  background: none;
+  border: none;
+  font-size: 0.85rem;
+  opacity: 0.12;
+  cursor: pointer;
+  z-index: 5;
+  padding: 4px;
+  transition: opacity 0.2s;
+  line-height: 1;
+  filter: grayscale(1);
+}
+.btn-admin-secret:hover { opacity: 0.35; }
+
 /* ============================================================
    ADMIN PASSWORD GATE
    ============================================================ */
