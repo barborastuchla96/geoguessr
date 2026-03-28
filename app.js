@@ -250,14 +250,17 @@ const Admin = (() => {
     if (imageFiles.length === 0) return;
 
     for (const file of imageFiles) {
-      const dataUrl = await readFileAsDataUrl(file);
-
+      // Extract GPS from original file BEFORE compression (canvas strips EXIF)
       let gps = null;
       try {
         gps = await exifr.gps(file);
       } catch (err) {
-        // exifr throws on some formats — treat as no GPS
+        // no GPS — will go to pending
       }
+
+      // Compress: read original → canvas resize → JPEG
+      const raw = await readFileAsDataUrl(file);
+      const dataUrl = await compressImage(raw);
 
       if (gps && gps.latitude != null && gps.longitude != null) {
         const photo = {
@@ -275,6 +278,24 @@ const Admin = (() => {
         renderPendingSection();
       }
     }
+  }
+
+  function compressImage(dataUrl, maxPx = 1200, quality = 0.78) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxPx || height > maxPx) {
+          if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
+          else                 { width = Math.round(width * maxPx / height);  height = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = dataUrl;
+    });
   }
 
   function readFileAsDataUrl(file) {
