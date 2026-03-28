@@ -243,6 +243,13 @@ html, body {
 .drop-icon { font-size: 2.5rem; }
 .drop-text { font-size: 1rem; font-weight: 700; color: #444; }
 .drop-sub  { font-size: 0.8rem; color: #999; }
+.drop-status {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--blue);
+  animation: pulse 1s ease-in-out infinite alternate;
+}
+@keyframes pulse { from { opacity: 0.6; } to { opacity: 1; } }
 .file-label { color: var(--blue); cursor: pointer; text-decoration: underline; }
 
 /* Pending section */

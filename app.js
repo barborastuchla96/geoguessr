@@ -107,6 +107,33 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
+/* ────────────────────────────────────────────────────────────
+   CLOUDINARY
+   ──────────────────────────────────────────────────────────── */
+const CLOUDINARY = { cloud: 'dyy4p9juo', preset: 'geoguessr' };
+
+function dataUrlToBlob(dataUrl) {
+  const [header, data] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)[1];
+  const binary = atob(data);
+  const arr = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+async function uploadToCloudinary(blob) {
+  const fd = new FormData();
+  fd.append('file', blob, 'photo.jpg');
+  fd.append('upload_preset', CLOUDINARY.preset);
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY.cloud}/image/upload`,
+    { method: 'POST', body: fd }
+  );
+  if (!res.ok) throw new Error('Upload failed (' + res.status + ')');
+  const json = await res.json();
+  return json.secure_url;
+}
+
 function shuffleArray(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -245,39 +272,55 @@ const Admin = (() => {
     });
   }
 
+  function setDropStatus(msg) {
+    const el = document.getElementById('drop-status');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.display = msg ? 'block' : 'none';
+  }
+
   async function handleFiles(files) {
     const imageFiles = files.filter(f => f.type.startsWith('image/'));
     if (imageFiles.length === 0) return;
 
-    for (const file of imageFiles) {
-      // Extract GPS from original file BEFORE compression (canvas strips EXIF)
+    for (let i = 0; i < imageFiles.length; i++) {
+      const file = imageFiles[i];
+      setDropStatus(`Uploading ${i + 1} / ${imageFiles.length}…`);
+
+      // 1. Extract GPS from original (canvas strips EXIF)
       let gps = null;
+      try { gps = await exifr.gps(file); } catch (e) {}
+
+      // 2. Compress before upload
+      const raw = await readFileAsDataUrl(file);
+      const compressed = await compressImage(raw);
+
+      // 3. Upload to Cloudinary (retry once on failure)
+      let cloudUrl;
       try {
-        gps = await exifr.gps(file);
-      } catch (err) {
-        // no GPS — will go to pending
+        cloudUrl = await uploadToCloudinary(dataUrlToBlob(compressed));
+      } catch (e) {
+        try {
+          cloudUrl = await uploadToCloudinary(dataUrlToBlob(compressed));
+        } catch (e2) {
+          setDropStatus(`Skipped ${file.name} — upload error`);
+          await new Promise(r => setTimeout(r, 1500));
+          continue;
+        }
       }
 
-      // Compress: read original → canvas resize → JPEG
-      const raw = await readFileAsDataUrl(file);
-      const dataUrl = await compressImage(raw);
-
       if (gps && gps.latitude != null && gps.longitude != null) {
-        const photo = {
-          id: uid(),
-          dataUrl,
-          lat: gps.latitude,
-          lng: gps.longitude,
-          name: file.name,
-        };
-        Store.addPhoto(photo);
+        Store.addPhoto({ id: uid(), dataUrl: cloudUrl, lat: gps.latitude, lng: gps.longitude, name: file.name });
         renderPhotoGrid();
         updateCount();
       } else {
-        pendingPhotos.push({ dataUrl, name: file.name, id: uid() });
+        // Store cloud URL + compressed preview for the pin UI
+        pendingPhotos.push({ dataUrl: compressed, cloudUrl, name: file.name, id: uid() });
         renderPendingSection();
       }
     }
+
+    setDropStatus(null);
   }
 
   function compressImage(dataUrl, maxPx = 1200, quality = 0.78) {
@@ -386,7 +429,7 @@ const Admin = (() => {
     const p = pendingPhotos[activePendingIdx];
     const photo = {
       id: p.id,
-      dataUrl: p.dataUrl,
+      dataUrl: p.cloudUrl || p.dataUrl,
       lat: pendingPinLatLng.lat,
       lng: pendingPinLatLng.lng,
       name: p.name,
