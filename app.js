@@ -14,7 +14,9 @@ const Store = (() => {
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
-      return raw ? JSON.parse(raw) : [];
+      const photos = raw ? JSON.parse(raw) : [];
+      // Strip any legacy base64 blobs — only keep cloud URLs
+      return photos.filter(p => p.dataUrl && p.dataUrl.startsWith('http'));
     } catch (e) {
       return [];
     }
@@ -26,9 +28,17 @@ const Store = (() => {
       return true;
     } catch (e) {
       if (e.name === 'QuotaExceededError' || e.code === 22) {
-        alert('Storage full! Your browser\'s localStorage quota has been exceeded. Try deleting some photos first.');
+        // Nuke any leftover base64 blobs and retry once
+        try {
+          const cleaned = load().filter(p => p.dataUrl && p.dataUrl.startsWith('http'));
+          localStorage.setItem(KEY, JSON.stringify(cleaned));
+          localStorage.setItem(KEY, JSON.stringify(photos));
+          return true;
+        } catch (e2) {
+          alert('Storage still full after cleanup. Try clearing your browser cache.');
+        }
       } else {
-        alert('Could not save photo: ' + e.message);
+        alert('Could not save: ' + e.message);
       }
       return false;
     }
@@ -828,6 +838,19 @@ const PasswordGate = (() => {
    BOOT
    ──────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
+  // One-time migration: purge any legacy base64 blobs from localStorage
+  try {
+    const KEY = 'wherewasthis_v1';
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const all = JSON.parse(raw);
+      const clean = all.filter(p => p.dataUrl && p.dataUrl.startsWith('http'));
+      if (clean.length !== all.length) {
+        localStorage.setItem(KEY, JSON.stringify(clean));
+      }
+    }
+  } catch (e) { localStorage.removeItem('wherewasthis_v1'); }
+
   Home.init();
   App.show('home');
 
